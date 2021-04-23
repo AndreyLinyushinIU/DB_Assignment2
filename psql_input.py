@@ -66,9 +66,9 @@ def get_data(table_name):
         rows = get_rows(conn, table_name)
 
         for row in rows:
-            relation = {}
-            for i in range(len(columns)):
-                relation[columns[i]] = str(row[i])
+            relation = {columns[i]: str(row[i]) for i in range(len(columns))}
             data.append(relation)
 
+    if len(data) > 0:
+        print("table " + table_name + " retrieved successfully")
     return data
