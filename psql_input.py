@@ -51,7 +51,7 @@ def get_data(table_name):
     try:
         # declare a new PostgreSQL connection object
         conn = connect(database="dvdrental", user="postgres",
-                       password="postgres", host="10.91.51.12", port="5432")
+                       password="password", host="127.0.0.1", port="5433")
 
         # print the connection if successful
         print("psycopg2 connection:", conn)
