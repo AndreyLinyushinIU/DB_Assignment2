@@ -20,17 +20,13 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 
-# psql_name table becomes transferred to firebase table firebase_name
 def add_table_realtime(table_name):
     data = psql_input.get_data(table_name)
     for i in range(len(data)):
         DB.child(table_name).child('record' + str(i)).set(data[i])
-
-
-# adding all tables
-def add_realtime_database(list_of_tables):
+def add_realtime_database(list_of_tables):  #parallel execution of several tables
     for table_name in list_of_tables:
-        threading.Thread(target=add_table, args=(table_name,)).start()
+        threading.Thread(target=add_table_realtime, args=(table_name,)).start()
 
 
 def add_table_firestore(table_name):
@@ -43,49 +39,57 @@ def add_table_firestore(table_name):
             doc = db.collection(table_name).document()
             batch.set(doc, rec)
         batch.commit()
-
-
-def add_firestore(list_of_tables):
+def add_firestore(list_of_tables):  #parallel execution of several tables
     for table_name in list_of_tables:
         threading.Thread(target=add_table_firestore, args=(table_name,)).start()
 
 
 def query1():
     payments = DB.child('payment').get()
-    count_smaller_pay = {}
+    ordered_rentals = DB.sort(DB.child('rental').get(), 'rental_id').each()
+    ordered_payments = DB.sort(payments, 'rental_id').each()
+
+    pay = {}
     for payment in payments.each():
-        if payment.val()['amount'] in count_smaller_pay.keys():
-            count_smaller_pay[payment.val()['amount']] += 1
+        if payment.val()['amount'] in pay.keys():
+            pay[payment.val()['amount']] += 1
         else:
-            count_smaller_pay[payment.val()['amount']] = 0
-    print(count_smaller_pay)
-    print(5 * '-----------------------------------------------------------------------------------------------------\n')
-    rentals = DB.child('rental').get()
-    ordered_payments_by_rental = DB.child('payment').order_by_child('rental_id')
-    for rental in rentals.each():
-        payments_set = ordered_payments_by_rental.equal_to(rental.val()['rental_id']).get()
-        for el in payments_set.each():
-            print(rental.val() + '\n' + el.val() + '\n' + str(count_smaller_pay[int(el.val()['amount'])]) + '\n')
+            pay[payment.val()['amount']] = 1
+
+    res = sorted(pay.items(), key = lambda p: float(p[0]))
+    res = [res[0]] + [(res[i][0], res[i][1] + res[i-1][1]) for i in range(1, len(res))]
+    res = [(res[i][0], res[i][1] - pay[res[i][0]]) for i in range(0, len(res))]
+
+    pay.update({i[0]: i[1] for i in res})
+    output = []
+
+    pointer = 0
+    for r in ordered_rentals:
+        while pointer < len(ordered_payments) and ordered_payments[pointer].val()['rental_id'] < r.val()['rental_id']:
+            pointer += 1
+        while pointer < len(ordered_payments) and ordered_payments[pointer].val()['rental_id'] == r.val()['rental_id']:
+            output.append(str(r.val()) + ' ' + str(ordered_payments[pointer].val()) + ' ' + str(pay[ordered_payments[pointer].val()['amount']]))
+            pointer += 1
+    return output
 
 
-def query2read():
-    actor_with_some_name = DB.child('actor').order_by_child('name').equal_to('some_name').get()
-    print("Test read: ")
-    print(actor.val() + '\n' for actor in actor_with_some_name.each())
+def query2insert():
+    for i in range(5):
+        DB.child('test_table').child('record' + str(i)).set({'data': 'important_data', 'value': i})
 
 
 def query2delete():
-    actors = DB.child("actor").get()
-    for actor in actors.each():
-        if actor.val()['name'] == 'some_name':
-            DB.child('actor').child(actor.key()).remove()
+    records = DB.child('test_table').get()
+    for r in records.each():
+        if r.val()['value'] == 3:
+            DB.child('test_table').child(r.key()).remove()
 
 
 def query2update():
-    actors = DB.child("actor").get()
-    for actor in actors.each():
-        if actor.val()['name'] == 'some_name':
-            DB.child('actor').child(actor.key()).update({'secret_field': 'enabled'})
+    records = DB.child('test_table').get()
+    for r in records.each():
+        if r.val()['value'] == 4:
+            DB.child('test_table').child(r.key()).update({'value': 100})
 
 
 def setTime(data):
@@ -99,9 +103,15 @@ def setTime(data):
 
 
 if __name__ == '__main__':
+    start = datetime.datetime.now()
+    query2insert()
+    query2delete()
+    query2update()
+    #print(query1())
     # listener = DB.stream(setTime)
-    # add_tables(['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
+    # add_realtime_database(['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
     #            'inventory', 'language', 'payment', 'rental', 'staff', 'store'])
     # listener.close()
-    add_firestore(['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
-                'inventory', 'language', 'payment', 'rental', 'staff', 'store'])
+    #add_firestore(['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
+    #            'inventory', 'language', 'payment', 'rental', 'staff', 'store'])
+    print(datetime.datetime.now()-start)
