@@ -6,10 +6,12 @@ import threading
 import datetime
 import math
 
+import json
+import requests
+
 # imports for using firestore
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+from firebase_admin import credentials, firestore
 
 # firebase
 DB = pyrebase.initialize_app(config.firebase).database()
@@ -50,6 +52,9 @@ def query1():
     ordered_payments = DB.sort(payments, 'rental_id').each()
 
     pay = {}
+    output = []
+    pointer = 0
+
     for payment in payments.each():
         if payment.val()['amount'] in pay.keys():
             pay[payment.val()['amount']] += 1
@@ -57,18 +62,17 @@ def query1():
             pay[payment.val()['amount']] = 1
 
     res = sorted(pay.items(), key = lambda p: float(p[0]))
-    res = [res[0]] + [(res[i][0], res[i][1] + res[i-1][1]) for i in range(1, len(res))]
+    for i in range(1, len(res)):
+        res[i] = (res[i][0], res[i][1] + res[i-1][1])
     res = [(res[i][0], res[i][1] - pay[res[i][0]]) for i in range(0, len(res))]
-
     pay.update({i[0]: i[1] for i in res})
-    output = []
 
-    pointer = 0
     for r in ordered_rentals:
         while pointer < len(ordered_payments) and ordered_payments[pointer].val()['rental_id'] < r.val()['rental_id']:
             pointer += 1
         while pointer < len(ordered_payments) and ordered_payments[pointer].val()['rental_id'] == r.val()['rental_id']:
             output.append(str(r.val()) + ' ' + str(ordered_payments[pointer].val()) + ' ' + str(pay[ordered_payments[pointer].val()['amount']]))
+            print(str(r.val()) + ' ' + str(ordered_payments[pointer].val()) + ' ' + str(pay[ordered_payments[pointer].val()['amount']]))
             pointer += 1
     return output
 
@@ -76,15 +80,11 @@ def query1():
 def query2insert():
     for i in range(5):
         DB.child('test_table').child('record' + str(i)).set({'data': 'important_data', 'value': i})
-
-
 def query2delete():
     records = DB.child('test_table').get()
     for r in records.each():
         if r.val()['value'] == 3:
             DB.child('test_table').child(r.key()).remove()
-
-
 def query2update():
     records = DB.child('test_table').get()
     for r in records.each():
@@ -104,14 +104,13 @@ def setTime(data):
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    query2insert()
-    query2delete()
-    query2update()
-    #print(query1())
-    # listener = DB.stream(setTime)
-    # add_realtime_database(['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
-    #            'inventory', 'language', 'payment', 'rental', 'staff', 'store'])
-    # listener.close()
-    #add_firestore(['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
-    #            'inventory', 'language', 'payment', 'rental', 'staff', 'store'])
+
+    #psql_input.get_json('data.json')
+    #data_file = open('data.json', 'r')
+    #data = data_file.read()
+    #requests.put(url="https://demoproject-4fbfa-default-rtdb.firebaseio.com/.json", json = json.loads(data))
+    #data_file.close()
+
+    query1()
+
     print(datetime.datetime.now()-start)

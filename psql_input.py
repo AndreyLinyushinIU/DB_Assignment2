@@ -80,4 +80,4 @@ def get_json(filename):
     data = {table_name: get_data(table_name) for table_name in tables}
 
     with open(filename, "w") as write_file:
-        json.dump(data, write_file)
+        json.dump(data, write_file, indent = 4)

@@ -14,6 +14,6 @@ postgres = {
     'database': "dvdrental",
     'username': "postgres",
     'password': "postgres",
-    'host': "192.168.31.133",
+    'host': "127.0.0.1",
     'port': "5432",
 }
