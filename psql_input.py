@@ -1,17 +1,19 @@
-# import the sql and connect libraries for psycopg2
-from psycopg2 import sql, connect
+import json
+
+from psycopg2 import connect
+from config import postgres
+
+tables = ['actor', 'address', 'category', 'city', 'country', 'customer', 'film', 'film_actor', 'film_category',
+          'inventory', 'language', 'payment', 'rental', 'staff', 'store']
 
 
 # define a function that gets the column names from a PostgreSQL table
 def get_columns(connection, table_name):
     cursor = connection.cursor()
-    #col_names_query = "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '{}';".format(table_name)
-    col_names_query = """SELECT attrelid::regclass AS tbl
-                             , attname            AS col
-                             , atttypid::regtype  AS datatype
-                               -- more attributes?
+
+    col_names_query = """SELECT attname
                         FROM   pg_attribute
-                        WHERE  attrelid = '{}'::regclass  -- table name, optionally schema-qualified
+                        WHERE  attrelid = '{}'::regclass
                         AND    attnum > 0
                         AND    NOT attisdropped
                         ORDER  BY attnum;""".format(table_name)
@@ -21,7 +23,7 @@ def get_columns(connection, table_name):
         cursor.execute(col_names_query)
         col_names = cursor.fetchall()
 
-        columns = [tup[1] for tup in col_names]
+        columns = [tup[0] for tup in col_names]
 
         cursor.close()
 
@@ -50,8 +52,8 @@ def get_rows(connection, table_name):
 def get_data(table_name):
     try:
         # declare a new PostgreSQL connection object
-        conn = connect(database="dvdrental", user="postgres",
-                       password="password", host="127.0.0.1", port="5433")
+        conn = connect(database=postgres['database'], user=postgres['username'],
+                       password=postgres['password'], host=postgres['host'], port=postgres['port'])
 
         # print the connection if successful
         print("psycopg2 connection:", conn)
@@ -60,15 +62,22 @@ def get_data(table_name):
         print("psycopg2 connect() ERROR:", err)
         conn = None
 
-    data = []
+    data = {}
     if conn is not None:
         columns = get_columns(conn, table_name)
         rows = get_rows(conn, table_name)
 
-        for row in rows:
-            relation = {columns[i]: str(row[i]) for i in range(len(columns))}
-            data.append(relation)
+        for i, row in enumerate(rows):
+            relation = {columns[j]: str(row[j]) for j in range(len(columns))}
+            data['record'+str(i)] = relation
 
     if len(data) > 0:
         print("table " + table_name + " retrieved successfully")
     return data
+
+
+def get_json(filename):
+    data = {table_name: get_data(table_name) for table_name in tables}
+
+    with open(filename, "w") as write_file:
+        json.dump(data, write_file)
