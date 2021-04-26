@@ -9,3 +9,11 @@ firebase = {
     'appId': "1:397046148735:web:8b0ca6cd53fb6e6050d94a",
     'measurementId': "G-RNC76K6E8H"
 }
+
+postgres = {
+    'database': "dvdrental",
+    'username': "postgres",
+    'password': "postgres",
+    'host': "192.168.31.133",
+    'port': "5432",
+}
